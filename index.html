@@ -436,6 +436,46 @@ tbody td{padding:9px 7px;border-bottom:1px solid var(--border)}
   background:white;border-radius:50%;transition:.3s}
 .gdrive-toggle input:checked ~ .gdrive-toggle-thumb{transform:translateX(16px)}
 
+
+/* ===== FICHE PRODUIT ÉTENDUE ===== */
+.pf-tabs{display:flex;gap:4px;margin-bottom:14px;background:var(--bg3);
+  border-radius:10px;padding:4px}
+.pf-tab{flex:1;padding:7px;border-radius:7px;font-size:11px;font-weight:600;
+  text-align:center;cursor:pointer;color:var(--text2);transition:all .2s}
+.pf-tab.on{background:var(--bg5);color:var(--accent)}
+.pf-section{display:none}.pf-section.on{display:block}
+.spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.spec-badge{display:inline-flex;align-items:center;gap:4px;
+  background:var(--accent-dim);border:1px solid rgba(0,245,196,0.2);
+  color:var(--accent);font-size:10px;padding:3px 8px;border-radius:20px;
+  margin:2px;font-weight:600}
+.color-swatches{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:all .2s;position:relative}
+.color-swatch.on{border-color:white;box-shadow:0 0 0 2px var(--accent)}
+.unit-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.unit-chip{padding:5px 11px;border-radius:20px;font-size:11px;font-weight:600;
+  background:var(--bg3);border:1px solid var(--border);color:var(--text2);
+  cursor:pointer;transition:all .2s}
+.unit-chip.on{background:var(--accent-dim);border-color:rgba(0,245,196,0.3);color:var(--accent)}
+.rating-stars{display:flex;gap:4px;margin-top:6px}
+.rating-star{font-size:20px;cursor:pointer;color:var(--text3);transition:all .2s}
+.rating-star.on{color:#fbbc05}
+.tags-input-wrap{display:flex;flex-wrap:wrap;gap:4px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:7px;min-height:38px;cursor:text}
+.tag-item{display:inline-flex;align-items:center;gap:4px;
+  background:var(--blue-dim);border:1px solid rgba(59,142,255,0.2);
+  color:var(--blue);font-size:11px;padding:2px 8px;border-radius:20px}
+.tag-item .tx{cursor:pointer;font-size:10px;color:var(--text3)}
+.tags-input{background:none;border:none;outline:none;font-size:12px;
+  color:var(--text);min-width:80px;flex:1}
+.condition-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.condition-btn{padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;
+  border:1px solid var(--border);background:var(--bg3);color:var(--text2);
+  cursor:pointer;transition:all .2s}
+.condition-btn.on{background:var(--accent-dim);border-color:rgba(0,245,196,0.3);color:var(--accent)}
+
 </style>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -700,9 +740,6 @@ tbody td{padding:9px 7px;border-bottom:1px solid var(--border)}
             <button class="gdrive-sync-now" id="gdrive-sync-btn" onclick="gdriveSyncNow()">
               ☁️ Synchroniser maintenant
             </button>
-            <button class="gdrive-sync-now" id="gdrive-restore-btn" onclick="gdriveShowRestoreList()" style="margin-top:8px;background:rgba(156,107,255,0.12);border-color:rgba(156,107,255,0.3);color:var(--purple)">
-              📥 Restaurer depuis Drive
-            </button>
             <div class="gdrive-auto-row">
               <span class="gdrive-auto-label">Sauvegarde automatique</span>
               <label class="gdrive-toggle">
@@ -863,24 +900,6 @@ tbody td{padding:9px 7px;border-bottom:1px solid var(--border)}
 </div>
 
 <div class="toast" id="toast"></div>
-
-<!-- MODAL RESTAURATION DRIVE -->
-<div class="overlay" id="ov-gdrive-restore" onclick="closeOvOnBg(event,'ov-gdrive-restore')">
-  <div class="sheet">
-    <div class="handle"></div>
-    <div class="modal-title">📥 Restaurer depuis Drive</div>
-    <div id="gdrive-restore-loading" style="text-align:center;padding:20px;color:var(--text2);font-size:13px">
-      ⏳ Chargement des sauvegardes…
-    </div>
-    <div id="gdrive-restore-list" style="display:none"></div>
-    <div id="gdrive-restore-empty" style="display:none;text-align:center;padding:20px;color:var(--text2);font-size:13px">
-      ℹ️ Aucune sauvegarde trouvée sur Drive.
-    </div>
-    <div style="margin-top:12px">
-      <button class="btn btn-s btn-full" onclick="closeOv('ov-gdrive-restore')">Annuler</button>
-    </div>
-  </div>
-</div>
 
 <!-- ============================================================ -->
 <!-- SCRIPT PRINCIPAL                                             -->
@@ -1190,6 +1209,8 @@ function launchApp(){
   navigate('home');
   checkStockAlerts();
   saveSession(CU.id);
+  // Auto-init Google Drive si déjà connecté
+  setTimeout(function(){ if(typeof gdriveInit==='function') gdriveInit(); }, 800);
 }
 
 function updateAvatarBtn(){
@@ -1343,17 +1364,52 @@ function openProdDetail(id){
   const p=DB.products.find(x=>x.id===id);if(!p)return;
   const f=DB.fournisseurs.find(x=>x.id===p.supId);
   const isAdmin=CU?.role==='admin';
+  const sp=p.specs||{};
+
+  // Construire les lignes de détails
+  const detailRows = [
+    sp.brand      ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">🏷️ Marque</span><span>${sp.brand}</span></div>` : '',
+    sp.model      ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">🔢 Modèle</span><span>${sp.model}</span></div>` : '',
+    sp.weight     ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">⚖️ Poids</span><span>${sp.weight}</span></div>` : '',
+    sp.dims       ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">📐 Dimensions</span><span>${sp.dims}</span></div>` : '',
+    sp.origin     ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">🏭 Origine</span><span>${sp.origin}</span></div>` : '',
+    sp.expiry     ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">📅 Expiration</span><span>${sp.expiry}</span></div>` : '',
+    sp.unit       ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">📦 Unité</span><span>${sp.unit}</span></div>` : '',
+    sp.color      ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">🎨 Couleur</span><span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border-radius:50%;background:${sp.color};display:inline-block;border:1px solid rgba(255,255,255,0.2)"></span>${sp.color}</span></div>` : '',
+    sp.condition  ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">✅ État</span><span>${sp.condition}</span></div>` : '',
+    sp.rating     ? `<div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">⭐ Note</span><span>${'★'.repeat(sp.rating)}${'☆'.repeat(5-sp.rating)}</span></div>` : '',
+    (sp.tags&&sp.tags.length) ? `<div class="li" style="cursor:default;flex-wrap:wrap;gap:4px"><span style="color:var(--text2);font-size:13px;width:100%;margin-bottom:4px">🏷️ Tags</span><span style="display:flex;flex-wrap:wrap;gap:4px">${sp.tags.map(t=>`<span style="background:var(--blue-dim);border:1px solid rgba(59,142,255,0.2);color:var(--blue);font-size:11px;padding:2px 8px;border-radius:20px">${t}</span>`).join('')}</span></div>` : '',
+    sp.techspecs  ? `<div class="li" style="cursor:default;flex-direction:column;align-items:flex-start"><span style="color:var(--text2);font-size:13px;margin-bottom:4px">🔬 Caractéristiques</span><span style="font-size:12px;color:var(--text);white-space:pre-line;line-height:1.6">${sp.techspecs}</span></div>` : '',
+    (isAdmin&&sp.notes) ? `<div class="li" style="cursor:default;flex-direction:column;align-items:flex-start;border:none"><span style="color:var(--text2);font-size:13px;margin-bottom:4px">📒 Notes internes</span><span style="font-size:12px;color:var(--text);line-height:1.6">${sp.notes}</span></div>` : '',
+  ].filter(Boolean).join('');
+
+  const hasDetails = detailRows.length > 0;
+
   showSheet(`
     <div style="text-align:center;margin-bottom:14px">${p.img ? `<img src="${p.img}" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px">` : `<div style="font-size:60px">${p.emoji}</div>`}</div>
     <div style="font-family:'Clash Display',sans-serif;font-size:20px;font-weight:700;margin-bottom:2px">${p.name}</div>
     <div style="font-family:'Clash Display',sans-serif;font-size:24px;font-weight:800;color:var(--accent);margin-bottom:10px">${fc(p.price)}</div>
-    <div style="color:var(--text2);font-size:13px;margin-bottom:14px;line-height:1.6">${p.desc||''}</div>
+    ${p.desc ? `<div style="color:var(--text2);font-size:13px;margin-bottom:14px;line-height:1.6">${p.desc}</div>` : ''}
     <div class="list-card" style="margin-bottom:12px">
-      <div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">Catégorie</span><span>${p.cat}</span></div>
+      <div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">Catégorie</span><span>${p.cat||'—'}</span></div>
       <div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">Stock</span><span class="tag ${p.stock===0?'badge-out':p.stock<=p.minStock?'badge-low':'badge-ok'}">${p.stock} unités</span></div>
       <div class="li" style="cursor:default"><span style="color:var(--text2);font-size:13px">Code-barres</span><span style="font-size:12px;font-family:monospace;color:var(--text2)">${p.barcode||'—'}</span></div>
       <div class="li" style="cursor:default;border:none"><span style="color:var(--text2);font-size:13px">Fournisseur</span><span>${f?.name||'—'}</span></div>
     </div>
+
+    ${hasDetails ? `
+    <button onclick="(function(){
+      const sec=document.getElementById('prod-detail-sec');
+      const btn=document.getElementById('prod-detail-btn');
+      const isOpen=sec.style.display!=='none';
+      sec.style.display=isOpen?'none':'block';
+      btn.textContent=isOpen?'📋 Détails':'🔼 Masquer détails';
+    })()" id="prod-detail-btn" style="width:100%;padding:11px;background:var(--blue-dim);border:1px solid rgba(59,142,255,0.3);border-radius:10px;color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;transition:all .2s">📋 Détails</button>
+    <div id="prod-detail-sec" style="display:none;margin-bottom:12px">
+      <div class="list-card">${detailRows}</div>
+    </div>
+    ` : ''}
+
     ${isAdmin?`<div style="display:flex;gap:8px"><button class="btn btn-s" style="flex:1" onclick="closeMain();openProdForm(${p.id},null)">✏ Modifier</button><button class="btn btn-d" style="flex:1" onclick="deleteProd(${p.id})">Supprimer</button></div>`
     :`<button class="btn btn-p btn-full" onclick="addToCart(${p.id});closeMain()">➕ Ajouter au panier</button>`}
   `);
@@ -1361,42 +1417,169 @@ function openProdDetail(id){
 
 function openProdForm(id=null, barcode=null){
   const p = id ? DB.products.find(x=>x.id===id) : null;
+  const sp = p?.specs || {};
   const bc = barcode||p?.barcode||'';
   const fopts = DB.fournisseurs.map(f=>`<option value="${f.id}" ${p?.supId===f.id?'selected':''}>${f.name}</option>`).join('');
   const imgPreview = p?.img ? `<img src="${p.img}" style="width:100%;height:110px;object-fit:cover;border-radius:10px;margin-bottom:8px;display:block" id="pf-img-preview">` : `<div id="pf-img-preview" style="display:none;width:100%;height:110px;object-fit:cover;border-radius:10px;margin-bottom:8px"></div>`;
+
+  const UNITS = ['Pièce','Kg','g','Litre','mL','Paquet','Carton','Boîte','Sachet','Bouteille','Flacon','Tube','Rouleau','Mètre','Palette','Lot','Douzaine','Paire'];
+  const COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#8b5cf6','#ec4899','#ffffff','#9ca3af','#1f2937','#92400e'];
+  const COLOR_NAMES = ['Rouge','Orange','Jaune','Vert','Turquoise','Bleu','Violet','Rose','Blanc','Gris','Noir','Marron'];
+  const savedColor = sp.color || '';
+  const savedUnit  = sp.unit  || '';
+  const savedCond  = sp.condition || '';
+  const savedRating = sp.rating || 0;
+  const savedTags  = sp.tags  || [];
+
+  const unitChips = UNITS.map(u=>`<div class="unit-chip ${savedUnit===u?'on':''}" onclick="pfSelectUnit(this,'${u}')">${u}</div>`).join('');
+  const colorSwatches = COLORS.map((c,i)=>`<div class="color-swatch ${savedColor===c?'on':''}" style="background:${c}" title="${COLOR_NAMES[i]}" onclick="pfSelectColor(this,'${c}')"></div>`).join('');
+  const stars = [1,2,3,4,5].map(n=>`<span class="rating-star ${savedRating>=n?'on':''}" onclick="pfSetRating(${n})">★</span>`).join('');
+  const tagsHtml = savedTags.map(t=>`<span class="tag-item">${t}<span class="tx" onclick="pfRemoveTag(this)">✕</span></span>`).join('');
+  const conditions = ['Neuf','Occasion','Reconditionné','Défectueux'];
+  const condBtns = conditions.map(c=>`<div class="condition-btn ${savedCond===c?'on':''}" onclick="pfSelectCond(this,'${c}')">${c}</div>`).join('');
+
   showSheet(`
     <div class="modal-title">${p?'Modifier produit':'Nouveau produit'}</div>
-    <div class="fg">
-      <label>Photo du produit</label>
-      ${imgPreview}
-      <label style="display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px dashed var(--border2);border-radius:10px;padding:10px 13px;cursor:pointer;font-size:13px;color:var(--text2)">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Choisir une photo (galerie ou appareil photo)
-        <input type="file" accept="image/*" style="display:none" onchange="handleProdImg(event)">
-      </label>
+
+    <div class="pf-tabs">
+      <div class="pf-tab on" onclick="pfTab(0,this)">📦 Base</div>
+      <div class="pf-tab"    onclick="pfTab(1,this)">📋 Détails</div>
+      <div class="pf-tab"    onclick="pfTab(2,this)">🎨 Extras</div>
     </div>
-    <div class="fg"><label>Nom</label><input id="pf-n" value="${p?.name||''}"></div>
-    <div class="f2">
-      <div class="fg"><label>Prix (${DB.settings.devise})</label><input id="pf-p" type="number" value="${p?.price||''}"></div>
-      <div class="fg"><label>Stock</label><input id="pf-s" type="number" value="${p?.stock||'0'}"></div>
+
+    <!-- TAB 0: BASE -->
+    <div class="pf-section on" id="pf-sec0">
+      <div class="fg">
+        <label>Photo du produit</label>
+        ${imgPreview}
+        <label style="display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px dashed var(--border2);border-radius:10px;padding:10px 13px;cursor:pointer;font-size:13px;color:var(--text2)">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Choisir une photo
+          <input type="file" accept="image/*" style="display:none" onchange="handleProdImg(event)">
+        </label>
+      </div>
+      <div class="fg"><label>Nom *</label><input id="pf-n" value="${p?.name||''}" placeholder="Ex: Coca Cola 50cl"></div>
+      <div class="f2">
+        <div class="fg"><label>Prix (${DB.settings.devise}) *</label><input id="pf-p" type="number" value="${p?.price||''}" placeholder="0"></div>
+        <div class="fg"><label>Stock *</label><input id="pf-s" type="number" value="${p?.stock||'0'}"></div>
+      </div>
+      <div class="f2">
+        <div class="fg"><label>Catégorie</label><input id="pf-c" value="${p?.cat||''}" placeholder="Boissons"></div>
+        <div class="fg"><label>Stock min.</label><input id="pf-m" type="number" value="${p?.minStock||5}"></div>
+      </div>
+      <div class="f2">
+        <div class="fg"><label>Emoji</label><input id="pf-e" value="${p?.emoji||'📦'}" maxlength="4"></div>
+        <div class="fg"><label>Code-barres / QR</label>
+          <div style="display:flex;gap:6px"><input id="pf-b" value="${bc}" style="flex:1">
+          <button class="btn btn-s btn-sm" onclick="openScannerForField('pf-b')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M3 17v2a2 2 0 002 2h2M17 3h2a2 2 0 012 2v2M17 21h2a2 2 0 002-2v-2M8 12h8"/></svg>
+          </button></div>
+        </div>
+      </div>
+      <div class="fg"><label>Fournisseur</label><select id="pf-f"><option value="">— Aucun —</option>${fopts}</select></div>
     </div>
-    <div class="f2">
-      <div class="fg"><label>Catégorie</label><input id="pf-c" value="${p?.cat||''}"></div>
-      <div class="fg"><label>Stock min.</label><input id="pf-m" type="number" value="${p?.minStock||5}"></div>
-    </div>
-    <div class="f2">
-      <div class="fg"><label>Emoji</label><input id="pf-e" value="${p?.emoji||'📦'}" maxlength="4"></div>
-      <div class="fg"><label>Code-barres / QR</label>
-        <div style="display:flex;gap:6px"><input id="pf-b" value="${bc}" style="flex:1">
-        <button class="btn btn-s btn-sm" onclick="openScannerForField('pf-b')" title="Scanner">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M3 17v2a2 2 0 002 2h2M17 3h2a2 2 0 012 2v2M17 21h2a2 2 0 002-2v-2M8 12h8"/></svg>
-        </button></div>
+
+    <!-- TAB 1: DÉTAILS / CARACTÉRISTIQUES -->
+    <div class="pf-section" id="pf-sec1">
+      <div class="fg"><label>🏷️ Marque</label><input id="sp-brand" value="${sp.brand||''}" placeholder="Ex: Nestlé, Samsung, Nike…"></div>
+      <div class="fg"><label>🔢 Modèle / Référence</label><input id="sp-model" value="${sp.model||''}" placeholder="Ex: Galaxy S24, iPhone 15…"></div>
+      <div class="spec-grid">
+        <div class="fg"><label>⚖️ Poids</label><input id="sp-weight" value="${sp.weight||''}" placeholder="Ex: 500g, 1.5kg"></div>
+        <div class="fg"><label>📐 Dimensions</label><input id="sp-dims" value="${sp.dims||''}" placeholder="Ex: 10×5×3 cm"></div>
+      </div>
+      <div class="spec-grid">
+        <div class="fg"><label>🏭 Origine / Pays</label><input id="sp-origin" value="${sp.origin||''}" placeholder="Ex: Côte d'Ivoire, Chine"></div>
+        <div class="fg"><label>📅 Date expiration</label><input id="sp-expiry" type="date" value="${sp.expiry||''}"></div>
+      </div>
+      <div class="fg"><label>📦 Unité de vente</label>
+        <div class="unit-chips" id="pf-unit-chips">${unitChips}</div>
+        <input id="sp-unit" value="${savedUnit}" placeholder="Ou saisissez une unité…" style="margin-top:8px">
+      </div>
+      <div class="fg"><label>📝 Description générale</label>
+        <textarea id="pf-d" rows="2" placeholder="Description du produit…">${p?.desc||''}</textarea>
+      </div>
+      <div class="fg"><label>🔬 Caractéristiques techniques</label>
+        <textarea id="sp-specs" rows="3" placeholder="Ex: Contenance: 50cl&#10;Sucre: 10g&#10;Sans conservateurs">${sp.techspecs||''}</textarea>
       </div>
     </div>
-    <div class="fg"><label>Fournisseur</label><select id="pf-f"><option value="">— Aucun —</option>${fopts}</select></div>
-    <div class="fg"><label>Description</label><textarea id="pf-d" rows="2">${p?.desc||''}</textarea></div>
-    <button class="btn btn-p btn-full" onclick="saveProd(${id||'null'})">${p?'Enregistrer':'Créer le produit'}</button>
+
+    <!-- TAB 2: EXTRAS -->
+    <div class="pf-section" id="pf-sec2">
+      <div class="fg"><label>🎨 Couleur</label>
+        <div class="color-swatches" id="pf-color-swatches">${colorSwatches}</div>
+        <input id="sp-color" value="${savedColor}" placeholder="Ou saisissez une couleur…" style="margin-top:8px">
+      </div>
+      <div class="fg"><label>✅ État / Condition</label>
+        <div class="condition-row">${condBtns}</div>
+        <input id="sp-condition" value="${savedCond}" style="display:none">
+      </div>
+      <div class="fg"><label>⭐ Qualité / Note interne</label>
+        <div class="rating-stars" id="pf-stars">${stars}</div>
+        <input id="sp-rating" type="hidden" value="${savedRating}">
+      </div>
+      <div class="fg"><label>🏷️ Tags / Mots-clés</label>
+        <div class="tags-input-wrap" onclick="document.getElementById('pf-tag-input').focus()">
+          <span id="pf-tags-container">${tagsHtml}</span>
+          <input id="pf-tag-input" class="tags-input" placeholder="Ajouter un tag, Entrée pour valider…"
+            onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();pfAddTag()}"
+            oninput="if(this.value.endsWith(','))pfAddTag()">
+        </div>
+        <input id="sp-tags" type="hidden" value="${JSON.stringify(savedTags)}">
+      </div>
+      <div class="fg"><label>🔗 Lien produit / URL</label>
+        <input id="sp-url" value="${sp.url||''}" placeholder="https://…"></div>
+      <div class="fg"><label>📒 Notes internes</label>
+        <textarea id="sp-notes" rows="2" placeholder="Visible uniquement par les admins…">${sp.notes||''}</textarea>
+      </div>
+    </div>
+
+    <button class="btn btn-p btn-full" onclick="saveProd(${id||'null'})" style="margin-top:14px">${p?'Enregistrer':'Créer le produit'}</button>
   `);
+}
+
+// ── Helpers formulaire produit ─────────────────────────────
+function pfTab(idx, el){
+  document.querySelectorAll('.pf-tab').forEach((t,i)=>t.classList.toggle('on',i===idx));
+  document.querySelectorAll('.pf-section').forEach((s,i)=>s.classList.toggle('on',i===idx));
+}
+function pfSelectUnit(el, val){
+  document.querySelectorAll('.unit-chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('sp-unit').value = val;
+}
+function pfSelectColor(el, val){
+  document.querySelectorAll('.color-swatch').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('sp-color').value = val;
+}
+function pfSetRating(n){
+  document.querySelectorAll('.rating-star').forEach((s,i)=>s.classList.toggle('on',i<n));
+  document.getElementById('sp-rating').value = n;
+}
+function pfSelectCond(el, val){
+  document.querySelectorAll('.condition-btn').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('sp-condition').value = val;
+}
+function pfAddTag(){
+  const inp = document.getElementById('pf-tag-input');
+  const val = inp.value.replace(',','').trim();
+  if(!val) return;
+  const container = document.getElementById('pf-tags-container');
+  const span = document.createElement('span');
+  span.className = 'tag-item';
+  span.innerHTML = val + '<span class="tx" onclick="pfRemoveTag(this)">✕</span>';
+  container.appendChild(span);
+  inp.value = '';
+  pfSyncTags();
+}
+function pfRemoveTag(el){
+  el.parentElement.remove();
+  pfSyncTags();
+}
+function pfSyncTags(){
+  const tags = [...document.querySelectorAll('#pf-tags-container .tag-item')].map(t=>t.childNodes[0].textContent.trim());
+  document.getElementById('sp-tags').value = JSON.stringify(tags);
 }
 
 function handleProdImg(e){
@@ -1430,12 +1613,37 @@ function saveProd(id){
   const pr=parseFloat(document.getElementById('pf-p').value);
   const st=parseInt(document.getElementById('pf-s').value);
   if(!n||isNaN(pr)||isNaN(st)){ showToast('Champs obligatoires manquants'); return; }
-  const d={ name:n, price:pr, stock:st, cat:document.getElementById('pf-c').value||'Général', minStock:parseInt(document.getElementById('pf-m').value)||5, emoji:document.getElementById('pf-e').value||'📦', barcode:document.getElementById('pf-b').value, supId:parseInt(document.getElementById('pf-f').value)||null, desc:document.getElementById('pf-d').value };
+  // Specs étendues
+  const specs = {
+    brand:    document.getElementById('sp-brand')?.value.trim()||'',
+    model:    document.getElementById('sp-model')?.value.trim()||'',
+    weight:   document.getElementById('sp-weight')?.value.trim()||'',
+    dims:     document.getElementById('sp-dims')?.value.trim()||'',
+    origin:   document.getElementById('sp-origin')?.value.trim()||'',
+    expiry:   document.getElementById('sp-expiry')?.value||'',
+    unit:     document.getElementById('sp-unit')?.value.trim()||'',
+    color:    document.getElementById('sp-color')?.value.trim()||'',
+    condition:document.getElementById('sp-condition')?.value||'',
+    rating:   parseInt(document.getElementById('sp-rating')?.value||0),
+    tags:     JSON.parse(document.getElementById('sp-tags')?.value||'[]'),
+    techspecs:document.getElementById('sp-specs')?.value.trim()||'',
+    url:      document.getElementById('sp-url')?.value.trim()||'',
+    notes:    document.getElementById('sp-notes')?.value.trim()||'',
+  };
+  const d={ name:n, price:pr, stock:st,
+    cat:document.getElementById('pf-c').value||'Général',
+    minStock:parseInt(document.getElementById('pf-m').value)||5,
+    emoji:document.getElementById('pf-e').value||'📦',
+    barcode:document.getElementById('pf-b').value,
+    supId:parseInt(document.getElementById('pf-f').value)||null,
+    desc:document.getElementById('pf-d').value,
+    specs
+  };
   if(window._pendingProdImg){ d.img = window._pendingProdImg; window._pendingProdImg = null; }
   else if(id){ const existing=DB.products.find(x=>x.id===id); if(existing?.img) d.img=existing.img; }
   if(id){ const i=DB.products.findIndex(x=>x.id===id);DB.products[i]={...DB.products[i],...d}; }
   else{ d.id=DB.nid.prod++;DB.products.push(d); addNotif('success',`Produit ajouté : ${d.emoji} ${d.name}`,'Stock'); }
-  saveDB().then(()=>{ closeMain();renderStock();showToast(id?'Produit mis à jour':'Produit créé !'); });
+  saveDB().then(()=>{ closeMain();renderStock();showToast(id?'✅ Produit mis à jour':'✅ Produit créé !'); });
 }
 
 function deleteProd(id){
@@ -2574,7 +2782,7 @@ function rcLogout(){
 // ============================================================
 // GOOGLE DRIVE AUTO-BACKUP
 // ============================================================
-const GDRIVE_CLIENT_ID = '748711010076-j0kcj6q1p7j52iruptunha9ue7536q5h.apps.googleusercontent.com'; // ← REMPLACEZ PAR VOTRE CLIENT ID
+const GDRIVE_CLIENT_ID = '728896865181-erd7b50dbrvpfs0dj5sqp6kvs3pjb8ef.apps.googleusercontent.com'; // ← REMPLACEZ PAR VOTRE CLIENT ID
 const GDRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.file';
 const GDRIVE_FOLDER    = 'StockMaster-Backups';
 
@@ -2830,91 +3038,6 @@ function gdriveRenderDisconnected(){
 window.addEventListener('load', function(){
   setTimeout(gdriveInit, 1000);
 });
-
-// ── Affiche la liste des backups disponibles sur Drive ─────
-async function gdriveShowRestoreList(){
-  if(!gdriveToken){ showToast('⚠️ Google Drive non connecté'); return; }
-  // Ouvrir la modal
-  document.getElementById('gdrive-restore-loading').style.display = 'block';
-  document.getElementById('gdrive-restore-list').style.display = 'none';
-  document.getElementById('gdrive-restore-empty').style.display = 'none';
-  openOv('ov-gdrive-restore');
-
-  try{
-    if(!gdriveFolderId) await gdriveEnsureFolder();
-    const q = `'${gdriveFolderId}' in parents and name contains 'Backup-Gstock' and trashed=false`;
-    const r = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&orderBy=createdTime desc&fields=files(id,name,createdTime,size)&pageSize=20`,
-      { headers:{ Authorization:'Bearer '+gdriveToken.access_token } }
-    );
-    const data = await r.json();
-    document.getElementById('gdrive-restore-loading').style.display = 'none';
-
-    if(!data.files || !data.files.length){
-      document.getElementById('gdrive-restore-empty').style.display = 'block';
-      return;
-    }
-
-    const listEl = document.getElementById('gdrive-restore-list');
-    listEl.style.display = 'block';
-    listEl.innerHTML = data.files.map(f => {
-      const date = new Date(f.createdTime).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-      const size = f.size ? (parseInt(f.size)/1024).toFixed(1)+' Ko' : '';
-      return `
-        <div class="li" onclick="gdriveRestoreFile('${f.id}','${f.name.replace(/'/g,"\\'")}')">
-          <div class="li-ava" style="background:rgba(66,133,244,0.12);color:#4285f4;font-size:20px">☁️</div>
-          <div class="li-info">
-            <div class="li-name" style="font-size:13px">${f.name}</div>
-            <div class="li-sub">${date}${size ? ' · '+size : ''}</div>
-          </div>
-          <svg width="14" height="14" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-        </div>`;
-    }).join('');
-  }catch(e){
-    document.getElementById('gdrive-restore-loading').style.display = 'none';
-    document.getElementById('gdrive-restore-empty').style.display = 'block';
-    document.getElementById('gdrive-restore-empty').textContent = '❌ Erreur : ' + e.message;
-  }
-}
-
-// ── Télécharge et applique un backup depuis Drive ──────────
-async function gdriveRestoreFile(fileId, fileName){
-  if(!confirm(`Restaurer "${fileName}" ?\n\nToutes les données actuelles seront remplacées.`)) return;
-  closeOv('ov-gdrive-restore');
-  showToast('⏳ Téléchargement en cours…');
-  try{
-    const r = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      { headers:{ Authorization:'Bearer '+gdriveToken.access_token } }
-    );
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const text = await r.text();
-    const data = JSON.parse(text);
-    if(data.products === undefined || data.settings === undefined){
-      showToast('❌ Fichier invalide — restauration annulée'); return;
-    }
-    // Sauvegarder les images séparément
-    const images = {};
-    (data.products||[]).forEach(p=>{ if(p.img){ images[p.id]=p.img; delete p.img; } });
-    DB = data;
-    await saveDB();
-    // Ré-injecter les images dans IndexedDB
-    for(const [id,img] of Object.entries(images)){
-      try{ await idbPut('images', id, img); }catch(e){}
-    }
-    await loadDB();
-    navigate('home');
-    const now = new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    showToast(`✅ Restauration réussie : ${fileName}`);
-    addNotif('success','Restauration Drive : '+fileName,'Google Drive');
-  }catch(e){
-    showToast('❌ Erreur restauration : '+e.message);
-  }
-}
-
-// ── Helper : ouvre une overlay ────────────────────────────
-function openOv(id){ document.getElementById(id).classList.add('active'); }
-function closeOv(id){ document.getElementById(id).classList.remove('active'); }
 
 </script>
 </body>
