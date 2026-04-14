@@ -485,9 +485,51 @@ tbody td{padding:9px 7px;border-bottom:1px solid var(--border)}
 <div class="glow-orb orb2"></div>
 
 <!-- ============================================================ -->
+<!-- PAGE 0 : CONNEXION GOOGLE                                   -->
+<!-- ============================================================ -->
+<div class="page active" id="page-google">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:28px;position:relative;z-index:1">
+    <div style="width:100%;max-width:380px">
+      <div style="text-align:center;margin-bottom:40px">
+        <div style="display:inline-flex;width:76px;height:76px;background:linear-gradient(135deg,var(--accent),var(--blue));border-radius:22px;align-items:center;justify-content:center;font-family:Clash Display,sans-serif;font-weight:800;font-size:28px;color:#080d14;animation:pulseGlow 3s ease-in-out infinite;margin-bottom:18px">S</div>
+        <div style="font-family:Clash Display,sans-serif;font-size:28px;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent">StockMaster Pro</div>
+        <div style="color:var(--text2);font-size:13px;margin-top:6px">Connectez-vous pour continuer</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:22px;padding:28px">
+        <div style="text-align:center;margin-bottom:24px">
+          <div style="font-size:38px;margin-bottom:10px">&#x2601;&#xFE0F;</div>
+          <div style="font-family:Clash Display,sans-serif;font-size:17px;font-weight:700;margin-bottom:6px">Connectez-vous avec Google</div>
+          <div style="color:var(--text2);font-size:13px;line-height:1.6">Vos donn&#233;es seront synchronis&#233;es automatiquement avec Google Drive.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:24px">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--accent-dim);border:1px solid rgba(0,245,196,0.15);border-radius:11px">
+            <span style="font-size:16px">&#x2705;</span>
+            <span style="font-size:12px;color:var(--text)">Sauvegarde automatique sur Drive</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--blue-dim);border:1px solid rgba(59,142,255,0.15);border-radius:11px">
+            <span style="font-size:16px">&#x1F504;</span>
+            <span style="font-size:12px;color:var(--text)">Synchronisation multi-appareils</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--purple-dim);border:1px solid rgba(156,107,255,0.15);border-radius:11px">
+            <span style="font-size:16px">&#x1F512;</span>
+            <span style="font-size:12px;color:var(--text)">Donn&#233;es s&#233;curis&#233;es dans votre compte</span>
+          </div>
+        </div>
+        <button onclick="doGoogleLogin()" id="google-login-btn" style="width:100%;padding:14px;background:white;border:none;border-radius:13px;font-family:Outfit,sans-serif;font-weight:700;font-size:14px;color:#1f1f1f;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;margin-bottom:12px">
+          <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Continuer avec Google
+        </button>
+        <div id="google-login-err" style="display:none;color:var(--danger);font-size:12px;text-align:center;padding:8px;background:rgba(255,61,87,0.08);border-radius:8px;margin-bottom:10px"></div>
+        <button onclick="skipGoogleLogin()" style="width:100%;background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;font-family:Outfit,sans-serif;padding:6px">Continuer sans Google Drive &#x2192;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
 <!-- PAGE 1 : SETUP / CHOIX DU DOSSIER                          -->
 <!-- ============================================================ -->
-<div class="page active" id="page-setup">
+<div class="page" id="page-setup">
   <div class="setup-card">
     <div class="setup-logo-wrap">
       <div class="setup-logo">S</div>
@@ -2727,7 +2769,18 @@ window.addEventListener('load', async ()=>{
       return;
     }
   }
-  // No session → go to setup
+  // No session → go to Google login page first
+  switchPage('page-google');
+  // If already connected to Google Drive, skip straight to setup
+  const storedToken = localStorage.getItem('gdrive_token');
+  const storedUser  = localStorage.getItem('gdrive_user');
+  if(storedToken && storedUser){
+    gdriveToken = JSON.parse(storedToken);
+    gdriveUser  = JSON.parse(storedUser);
+    const auto = localStorage.getItem('gdrive_auto');
+    gdriveAutoEnabled = auto !== 'false';
+    skipGoogleLogin();
+  }
 });
 
 // ===== SESSION =====
@@ -2782,7 +2835,7 @@ function rcLogout(){
 // ============================================================
 // GOOGLE DRIVE AUTO-BACKUP
 // ============================================================
-const GDRIVE_CLIENT_ID = '728896865181-erd7b50dbrvpfs0dj5sqp6kvs3pjb8ef.apps.googleusercontent.com'; // ← REMPLACEZ PAR VOTRE CLIENT ID
+const GDRIVE_CLIENT_ID = '1064387630513-s7rqsi2bgskpq25o8s46p3p4vnimoi50.apps.googleusercontent.com';
 const GDRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.file';
 const GDRIVE_FOLDER    = 'StockMaster-Backups';
 
@@ -2791,6 +2844,63 @@ let gdriveUser        = null;
 let gdriveAutoEnabled = true;
 let gdriveFolderId    = null;
 let gdriveAutoTimer   = null;
+
+// ── Page de connexion Google au démarrage ─────────────────
+function doGoogleLogin(){
+  const btn = document.getElementById('google-login-btn');
+  const err = document.getElementById('google-login-err');
+  if(err) err.style.display='none';
+  if(btn){ btn.disabled=true; btn.textContent='Connexion en cours…'; }
+
+  if(!window.google || !window.google.accounts){
+    if(err){ err.textContent='Bibliothèque Google non chargée. Vérifiez votre connexion.'; err.style.display='block'; }
+    if(btn){ btn.disabled=false; btn.innerHTML='<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuer avec Google'; }
+    return;
+  }
+
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GDRIVE_CLIENT_ID,
+    scope: GDRIVE_SCOPES + ' https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+    callback: async (resp) => {
+      if(resp.error){
+        if(err){ err.textContent='Connexion annulée ou refusée.'; err.style.display='block'; }
+        if(btn){ btn.disabled=false; btn.innerHTML='<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuer avec Google'; }
+        return;
+      }
+      gdriveToken = resp;
+      localStorage.setItem('gdrive_token', JSON.stringify(resp));
+      // Fetch user profile
+      try{
+        const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers:{ Authorization: 'Bearer ' + resp.access_token }
+        });
+        gdriveUser = await r.json();
+        localStorage.setItem('gdrive_user', JSON.stringify(gdriveUser));
+      }catch(e){}
+      gdriveAutoEnabled = true;
+      localStorage.setItem('gdrive_auto','true');
+      showToast('✅ Google Drive connecté !');
+      // Proceed to setup/login
+      goToSetupOrLogin();
+    }
+  });
+  client.requestAccessToken();
+}
+
+function skipGoogleLogin(){
+  goToSetupOrLogin();
+}
+
+function goToSetupOrLogin(){
+  // If Drive connected, try to restore from Drive first, then go to setup
+  switchPage('page-setup');
+  // Also init drive in the background
+  if(gdriveToken){
+    gdriveEnsureFolder().catch(()=>{});
+    gdriveStartAutoTimer();
+    gdriveRenderConnected();
+  }
+}
 
 // ── Init au démarrage ──────────────────────────────────────
 async function gdriveInit(){
